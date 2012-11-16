@@ -17,13 +17,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with OWASPscanner. If not, see <http://www.gnu.org/licenses/>.
-#sdfdsfdsfds
+
 # Setup variables
 use strict;
 use Config;
 use IO::Socket;
 use IO::Handle;
 use Getopt::Std;
+use Getopt::Long;
 use Fcntl;
 
 my $release = "0.9b";
@@ -42,50 +43,76 @@ my $hostnamelen = 250;
 my $dnssock = "/tmp/.scannerlock";
 my $resolvedip = "10.255.255.254";
 my $xsserpath = "";
-my $nmappath = "";
+my $skipfishpath = "";
 my $website = "";
 
 # Process command line arguments
-my %options;
-my $verbose = $options{verbose};
-my $confile = $options{config} || "OWASPscanner.conf";
-my $xss = $options{xss};
-my $spider = $options{spider};
-my $all = $options{all};
-my $user = $options{user};
-my $password = $options{password} || "";
-my $wordlist = $options{wlist};
-my $debug = $options{debug};
+my $confile = "";
+my $xss = "";
+my $spider = "";
+my $all = "";
+my $debug = "";
 
-print ("\nOWASPscanner.pl. ".$release."\n");
+print ("\nOWASPscanner.pl Version ".$release."\n");
 print ("Copyright (C) 2012 Woody Hughes <whughes\@ingresssecurity.com>\n");
 print ("\n");
 
-my $mode = $options{""};
-if ($mode ne "--config" && $mode ne "--all" && $mode ne "--verbose" && $mode ne "--xss" && $mode ne "--spider")
+if (GetOptions ('xss' => \$xss, 'spider' => \$spider, 'all' => \$all, 'debug' => \$debug))
 {
-	usage();
-	exit(1);
+	if ($xss)
+	{
+		xss();
 	}
+	elsif ($spider)
+	{
+		spider();
+	}
+	elsif ($all)
+	{
+		all();
+	}
+	elsif($debug)
+	{
+		debug();
+	}	
+}
+usage();
+exit(1);
 
-print ("We need to determine where some important files are located.\n");
-print ("Please enter the path to nmap: ");
-chomp($nmappath = <STDIN>);
-print ("Please enter the path to xsser: ");
-chomp($xsserpath = <STDIN>);
-print ("Enter the website to test: ");
-chomp($website = <STDIN>);
+sub spider
+{	
+	print ("Please enter the path to skipfish: ");
+	chomp($skipfishpath = <STDIN>);
+	print ("Enter the website to spider: ");
+	chomp($website = <STDIN>);
+	print ("Spidering ".$host."...\n");
+	system $skipfishpath . '/skipfish -W' . $skipfishpath . '/dictionaries/complete.wl -o test ' . $website;
+}
 
-print ("Scanning ".$host."...\n");
+sub xss
+{
+	print ("Please enter the path to xsser: ");
+	chomp($xsserpath = <STDIN>);	
+	print ("Enter the website to test: ");
+	chomp($website = <STDIN>);
+	print ("Scanning ".$host."...\n");
+}
 
-
+sub all
+{
+	print("Alright yo, here we go... time to spider the host...\n");
+	spider();
+	print("We're done spidering the host... now let's test for XSS vulnerabilities...\n'");
+	xss();
+	print("We're done... enjoy the results. Play on playa!");
+	exit(1);
+}
 
 sub usage
 {
 	die <<EOF;
 	Usage: $0
 	
-	--verbose : Verbose mode
 	--config <config_file>
 	--all : Run all tests
 	--xss : Only run XSS testing
