@@ -20,7 +20,7 @@
 
 # Setup variables
 use strict;
-use Config;
+use Config::Tiny;
 use IO::Socket;
 use IO::Handle;
 use Getopt::Std;
@@ -34,9 +34,8 @@ my $port = "";
 my $proxyhost = "";
 my $proxyport = "";
 my $lhost = "";
-my $dnssock = "/tmp/.scannerlock";
+my $sock = "/tmp/.scannerlock";
 my $xsserpath = "";
-my $skipfishpath = "";
 my $website = "";
 my $owaspdir = "";
 my $xsserpath = "";
@@ -45,8 +44,10 @@ my $sqlmappath = "";
 my $sqlmapbinpath = "";
 my $sqlninjapath = "";
 my $nmappath = "";
-my $skipfishpath = "";
-my $skipfishbinpath = "";
+my $niktopath = "";
+my $niktobinpath = "";
+my $testdebug;
+my $Config;
 
 # Process command line arguments
 my $confile = "config.ini";
@@ -58,8 +59,6 @@ my $debug = "";
 print ("\nOWASPscanner.pl Version ".$release."\n");
 print ("Copyright (C) 2012 Woody Hughes <whughes\@ingresssecurity.com>\n");
 print ("\n");
-
-parseconfig();
 
 if (GetOptions ('xss' => \$xss, 'spider' => \$spider, 'all' => \$all, 'debug' => \$debug))
 {
@@ -79,16 +78,23 @@ if (GetOptions ('xss' => \$xss, 'spider' => \$spider, 'all' => \$all, 'debug' =>
 	{
 		debug();
 	}	
+	usage();
 }
-#usage();
+
 exit(1);
 
 sub spider
 {	
 	print ("Enter the website to spider: ");
 	chomp($website = <STDIN>);
-	print ("[+] Spidering ".$website."...\n");
-	system $skipfishbinpath ."/skipfish -W " . $skipfishpath . "/dictionaries/complete.wl -o " . $owaspdir . "/" . $website . $website;
+	print ("[+] Spidering ".$website."...\n\n");
+	
+	my $cfg = Config::Tiny->read( $confile );
+	my $niktobinpath = $cfg->{options}->{ niktobinpath };
+	my $niktopath = $cfg->{options}->{ niktopath };
+	my $owaspdir = $cfg->{options}->{ owaspdir };
+	
+	system ($niktobinpath . "nikto -Display off -nointeractive -Tuning x 6 -Format xml -o " . $owaspdir . "nikto.xml -host " . $website . "\n");
 	print ("[+] Spidering of ". $website." is completed\n");
 }
 
@@ -101,11 +107,11 @@ sub xss
 
 sub all
 {
-	print("Alright yo, here we go... time to spider the host...\n");
+	print("[+] ]Spidering host...\n");
 	spider();
-	print("We're done spidering the host... now let's test for XSS vulnerabilities...\n'");
+	print("[+] ]Done... now let's test for XSS vulnerabilities...\n'");
 	xss();
-	print("We're done... enjoy the results. Play on playa!");
+	print("[+] ]We're done... enjoy.");
 	exit(1);
 }
 
@@ -114,10 +120,10 @@ sub usage
 	die <<EOF;
 	Usage: $0
 	
-	--config <config_file>
 	--all : Run all tests
 	--xss : Only run XSS testing
 	--spider : Only spider the hostname
+	
 EOF
 }
 
@@ -167,18 +173,18 @@ sub parseconfig
 				$owaspdir = $owaspdir."/";
 			}
 		}
-		# skipfish path
-		elsif ($confline =~ m/^skipfishpath=(\S+)$/) {
-			$skipfishpath = $1;
-			unless ($skipfishpath=~m/\/$/) {
-				$skipfishpath = $skipfishpath."/";
+		# nikto path
+		elsif ($confline =~ m/^niktopath=(\S+)$/) {
+			$niktopath = $1;
+			unless ($niktopath=~m/\/$/) {
+				$niktopath = $niktopath."/";
 			}
 		}
-		# skipfish binary path
-		elsif ($confline =~ m/^skipfishbinpath=(\S+)$/) {
-			$skipfishbinpath = $1;
-			unless ($skipfishbinpath=~m/\/$/) {
-				$skipfishbinpath = $skipfishbinpath."/";
+		# nikto binary path
+		elsif ($confline =~ m/^niktobinpath=(\S+)$/) {
+			$niktobinpath = $1;
+			unless ($niktobinpath=~m/\/$/) {
+				$niktobinpath = $niktobinpath."/";
 			}
 		}
 		# xsser path
@@ -231,56 +237,3 @@ sub parseconfig
 	close FILE;
 	}
 }
-	# if ($httprequest eq "") {
-		# print "[-] HTTP request not defined in ".$confile."\n";
-		# print "    Are you sure you are not using a configuration file of a previous version?\n";
-		# print "    Starting from version 0.2.6, the syntax has changed. See documentation\n";
-		# exit(1);
-	# }
-	# if ($httprequest !~ m/$sqlmarker/) {
-		# print "[-] No ".$sqlmarker." marker was found in the HTTP request in ".$confile."\n";
-		# print "    See documentation for how to specify the attack request\n";
-		# exit(1);
-	# }
-	# if ($host eq "") {
-		# print "[-] host not defined in ".$confile."\n";
-		# exit (1);
-	# }
-	# if ($httprequest eq "") {
-		# print "[-] no HTTP defined in ".$confile."\n";
-		# exit (1);
-	# }
-	# if ($filterconf eq "") {
-		# $filterconf = "src host ".$host." and dst host ".$lhost;
-	# }
-	# if (($mode eq "5") or ($mode eq "dnstunnel")) {
-		# if ($hostnamelen < (length($domain)+10)) {
-			# print "[-] max hostname length too short\n";
-			# exit(1);
-		# }
-		# if ($hostnamelen > 255) {
-			# print "[-] max hostname length too long\n";
-			# exit(1);
-		# }
-	# }
-	# if ($evasion =~ /[1-4]/) {
-		# print "[+] Evasion technique(s):\n";
-		# if ($evasion =~ /1/) {
-			# print "    - query hex-encoding\n";
-		# }	
-		# if ($evasion =~ /2/) {
-		        # print "    - comments as separator\n";
-		# }
-		# if ($evasion =~ /3/) {
-		        # print "    - random case\n";
-		# }
-		# if ($evasion =~ /4/) {
-		        # print "    - random URI encoding\n";
-		# }
-	# }
-	# # If we are using a proxy without SSL, we need to modify the first line
-	# # E.g.: GET /blah.asp --> GET http://victim.com/blah.asp
-	# if (($proxyhost ne "") and ($ssl eq "")) {
-		# $httprequest =~ s/$method\s+\//$method http:\/\/$host:$port\//; 
-	# }
-# }
